@@ -1,165 +1,145 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import NavBar from "../Components/NavBar";
-import {
-  DndContext,
-  closestCorners,
-  useDroppable,
-  useDraggable,
-} from "@dnd-kit/core";
+import TaskModal from "../Components/TaskModel";
+import Column from "../Components/Column";
+import BoardControls from "../Components/BoardControls";
+import ActivityLog from "../Components/ActivityLog";
+import { DndContext, closestCorners } from "@dnd-kit/core";
 
 const Home = () => {
   const [tasks, setTasks] = useState([]);
-  const [taskInput, setTaskInput] = useState("");
   const [activity, setActivity] = useState([]);
+  const [search, setSearch] = useState("");
+  const [priorityFilter, setPriorityFilter] = useState("All");
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [editingTask, setEditingTask] = useState(null);
 
-  const addTask = () => {
-    if (!taskInput.trim()) return;
+  useEffect(() => {
+    const saved = JSON.parse(localStorage.getItem("tasks"));
+    if (saved) setTasks(saved);
+  }, []);
 
-    const newTask = {
-      id: Date.now().toString(),
-      title: taskInput,
-      status: "todo",
-    };
+  useEffect(() => {
+    localStorage.setItem("tasks", JSON.stringify(tasks));
+  }, [tasks]);
 
-    setTasks([...tasks, newTask]);
-    setActivity([`Task "${taskInput}" created`, ...activity]);
-    setTaskInput("");
+  const saveTask = (taskData) => {
+    const exists = tasks.find((t) => t.id === taskData.id);
+
+    if (exists) {
+      setTasks(tasks.map((t) => (t.id === taskData.id ? taskData : t)));
+      setActivity((prev) => [`Task updated`, ...prev]);
+    } else {
+      setTasks([...tasks, taskData]);
+      setActivity((prev) => [`Task created`, ...prev]);
+    }
   };
 
   const deleteTask = (id) => {
-    const task = tasks.find((t) => t.id === id);
     setTasks(tasks.filter((t) => t.id !== id));
-    setActivity([`Task "${task.title}" deleted`, ...activity]);
+    setActivity((prev) => [`Task deleted`, ...prev]);
+  };
+
+  const resetBoard = () => {
+    if (window.confirm("Reset entire board?")) {
+      setTasks([]);
+      localStorage.removeItem("tasks");
+      setActivity([]);
+    }
   };
 
   const handleDragEnd = (event) => {
     const { active, over } = event;
     if (!over) return;
 
-    const taskId = active.id;
-    const newStatus = over.id;
-
     setTasks(
       tasks.map((task) =>
-        task.id === taskId
-          ? { ...task, status: newStatus }
-          : task
+        task.id === active.id ? { ...task, status: over.id } : task
       )
     );
 
-    setActivity([`Task moved to ${newStatus}`, ...activity]);
+    setActivity((prev) => [`Task moved`, ...prev]);
   };
 
-  const Column = ({ title, status }) => {
-    const { setNodeRef } = useDroppable({ id: status });
-
-    return (
-      <div
-        ref={setNodeRef}
-        className="bg-zinc-900 p-4 rounded-xl flex-1 min-h-[400px]"
-      >
-        <h2 className="text-xl font-semibold mb-4 text-white">
-          {title}
-        </h2>
-
-        <div className="space-y-3">
-          {tasks
-            .filter((task) => task.status === status)
-            .map((task) => (
-              <TaskCard key={task.id} task={task} />
-            ))}
-        </div>
-      </div>
-    );
-  };
-
-  const TaskCard = ({ task }) => {
-    const { attributes, listeners, setNodeRef, transform } =
-      useDraggable({ id: task.id });
-
-    const style = {
-      transform: transform
-        ? `translate(${transform.x}px, ${transform.y}px)`
-        : undefined,
-    };
-
-    return (
-      <div
-        ref={setNodeRef}
-        style={style}
-        {...listeners}
-        {...attributes}
-        className="bg-zinc-800 text-white p-3 rounded-lg cursor-grab flex justify-between items-center"
-      >
-        <span>{task.title}</span>
-        <button
-          onClick={() => deleteTask(task.id)}
-          className="text-red-400 text-sm"
-        >
-          ✕
-        </button>
-      </div>
-    );
-  };
+  const processedTasks = tasks
+    .filter((task) =>
+      task.title.toLowerCase().includes(search.toLowerCase())
+    )
+    .filter((task) =>
+      priorityFilter === "All" ? true : task.priority === priorityFilter
+    )
+    .sort((a, b) => {
+      if (!a.dueDate) return 1;
+      if (!b.dueDate) return -1;
+      return new Date(a.dueDate) - new Date(b.dueDate);
+    });
 
   return (
-    <div className="min-h-screen bg-black text-white">
+    <div className="min-h-screen bg-gray-50 text-black">
       <NavBar />
 
-      <div className="pt-28 px-6 max-w-7xl mx-auto">
-        {/* Add Task Section */}
-        <div className="flex gap-3 mb-10">
-          <input
-            value={taskInput}
-            onChange={(e) => setTaskInput(e.target.value)}
-            placeholder="Enter new task..."
-            className="flex-1 px-4 py-2 rounded-lg text-white border-2 border-white"
-          />
-          <button
-            onClick={addTask}
-            className="bg-emerald-500 px-6 py-2 rounded-lg hover:bg-emerald-600 transition"
-          >
-            Add Task
-          </button>
-        </div>
+      <div className="pt-28 px-6 max-w-7xl mx-auto space-y-6">
+
+        <BoardControls
+          search={search}
+          setSearch={setSearch}
+          priorityFilter={priorityFilter}
+          setPriorityFilter={setPriorityFilter}
+          onCreate={() => {
+            setEditingTask(null);
+            setIsModalOpen(true);
+          }}
+          onReset={resetBoard}
+        />
 
         <DndContext
           collisionDetection={closestCorners}
           onDragEnd={handleDragEnd}
         >
-          <div className="flex flex-col gap-10">
-            
-            {/* Row 1 → 3 Columns */}
-            <div className="flex flex-col md:flex-row gap-6 w-full">
-              <Column title="Todo" status="todo" />
-              <Column title="Doing" status="doing" />
-              <Column title="Done" status="done" />
-            </div>
-
-            {/* Row 2 → Activity Log */}
-            <div className="w-full bg-zinc-900 p-6 rounded-xl">
-              <h2 className="text-xl font-semibold mb-4 text-white">
-                Activity Log
-              </h2>
-
-              <div className="space-y-2 text-sm max-h-60 overflow-y-auto">
-                {activity.length === 0 && (
-                  <p className="text-zinc-400">
-                    No activity yet.
-                  </p>
-                )}
-
-                {activity.map((log, index) => (
-                  <p key={index} className="text-white">
-                    • {log}
-                  </p>
-                ))}
-              </div>
-            </div>
-
+          <div className="flex gap-6">
+            <Column
+              title="Todo"
+              status="todo"
+              tasks={processedTasks}
+              onEdit={(task) => {
+                setEditingTask(task);
+                setIsModalOpen(true);
+              }}
+              onDelete={deleteTask}
+            />
+            <Column
+              title="Doing"
+              status="doing"
+              tasks={processedTasks}
+              onEdit={(task) => {
+                setEditingTask(task);
+                setIsModalOpen(true);
+              }}
+              onDelete={deleteTask}
+            />
+            <Column
+              title="Done"
+              status="done"
+              tasks={processedTasks}
+              onEdit={(task) => {
+                setEditingTask(task);
+                setIsModalOpen(true);
+              }}
+              onDelete={deleteTask}
+            />
           </div>
         </DndContext>
+
+        <ActivityLog activity={activity} />
+
       </div>
+
+      <TaskModal
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        onSave={saveTask}
+        editingTask={editingTask}
+      />
     </div>
   );
 };

@@ -2,10 +2,8 @@ import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import LoginForm from "../Components/LoginForm";
 
-
 const Login = () => {
   const navigate = useNavigate();
-
   const [error, setError] = useState("");
 
   const correctEmail = "intern@demo.com";
