@@ -1,4 +1,4 @@
-"homepage": "https://your-github-username.github.io/Task-board-Application",
+
 
 {
   "name": "taskboard",
@@ -8,6 +8,7 @@
   "engines": {
     "node": ">=18"
   },
+  "homepage": "https://your-github-username.github.io/Task-board-Application",
  "scripts": {
   "dev": "vite",
   "build": "vite build",
