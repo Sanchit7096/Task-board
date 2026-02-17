@@ -49,4 +49,3 @@ A modern style task management application built with React and Tailwind CSS.
 
 ---
 
-## 📁 Project Structure
