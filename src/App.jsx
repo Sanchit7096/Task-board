@@ -1,4 +1,4 @@
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { Routes, Route } from "react-router-dom";
 import Login from "./Pages/Login";
 import Home from "./Pages/Home";
 import ProtectedRoute from "./Components/ProtectRoutes";
@@ -6,23 +6,25 @@ import NavBar from "./Components/NavBar";
 
 function App() {
   return (
-    <BrowserRouter>
+    <>
       <Routes>
         {/* Public Route */}
-        <Route path="/" element={<Login/>} />
+        <Route path="/" element={<Login />} />
 
         {/* Protected Route */}
         <Route
           path="/home"
           element={
             <ProtectedRoute>
-              <Home />
-              <NavBar/>
+              <>
+                <NavBar />
+                <Home />
+              </>
             </ProtectedRoute>
           }
         />
       </Routes>
-    </BrowserRouter>
+    </>
   );
 }
 
